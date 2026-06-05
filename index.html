@@ -349,11 +349,6 @@ body{font-family:'Share Tech Mono',monospace;color:#e8eaf0;min-height:100vh;}
     </div>
     <div class="cs-panel active" id="panel-vitals"><div class="cs-panel-lbl">Patient Vitals</div><div class="cs-vitals-grid" id="vitals-grid"></div></div>
     <div class="cs-panel" id="panel-history">
-      <div class="cs-api-banner" id="api-banner">
-        <div class="cs-api-lbl">API Key</div>
-        <input class="cs-api-input" id="api-key-input" type="password" placeholder="sk-ant-api03-..."/>
-        <button class="cs-api-btn" onclick="saveApiKey()">Connect</button>
-      </div>
       <div class="cs-panel-lbl">History Taking & Physical Exam</div>
       <div class="cs-chat-box" id="chat-box"></div>
       <div class="cs-chat-row">
@@ -786,12 +781,12 @@ async function doChat(){
   document.getElementById('chat-box').appendChild(ld);document.getElementById('chat-box').scrollTop=99999;
   s.chat.push({r:'user',c:msg});
   let reply='';
-  if(G.apiKey&&G.apiKey.startsWith('sk-ant-')){
+  if(true){
     try{
-      const res=await fetch('https://api.anthropic.com/v1/messages',{
+      const res=await fetch('/api/chat',{
         method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':G.apiKey,'anthropic-version':'2023-06-01'},
-        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:150,system:p.ctx,messages:s.chat.map(m=>({role:m.r,content:m.c}))})
+        headers:{'Content-Type':'application/json'},
+body:JSON.stringify({system:p.ctx,messages:s.chat.map(m=>({role:m.r,content:m.c}))})
       });
       const data=await res.json();
       if(data.content&&data.content[0])reply=data.content[0].text;
