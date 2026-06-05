@@ -843,4 +843,239 @@ function tgDx(lid,raw){
 
 function renderPlanTags(){
   const s=G.st[G.cur];
-  document.getElementById('plan-tags').innerHTML=s.plan.map(item=>'<div class="cs-tag-pill">'+item+'<span class="cs-tag-x" onclick="rmPlan(
+  document.getElementById('plan-tags').innerHTML=s.plan.map(item=>'<div class="cs-tag-pill">'+item+'<span class="cs-tag-x" onclick="rmPlan(\''+e2(item)+'\')\">✕</span></div>').join('');
+}
+
+function rmPlan(raw){const s=G.st[G.cur];const item=DX.find(d=>e2(d)===raw)||raw;s.plan=s.plan.filter(x=>x!==item);buildDxL('plan-list',DX,s.plan);renderPlanTags();}
+function filterDx(si,li,type){const s=G.st[G.cur];buildDxL(li,DX,type==='plan'?s.plan:(s.impr?[s.impr]:[]));}
+
+// ═══════════════════════════════════════
+// INVESTIGATIONS
+// ═══════════════════════════════════════
+function buildInvL(){
+  const s=G.st[G.cur];
+  const q=document.getElementById('inv-s').value;
+  const fi=q?INV.filter(i=>i.toLowerCase().includes(q.toLowerCase())):INV;
+  document.getElementById('inv-list').innerHTML=fi.map(item=>'<div class="cs-chk-item '+(s.invSel.includes(item)?'sel':'')+'" onclick="tgInv(\''+e2(item)+'\')"><div class="cs-chkbox">'+(s.invSel.includes(item)?'✓':'')+'</div><span>'+item+'</span></div>').join('');
+}
+
+function tgInv(raw){
+  const s=G.st[G.cur];const item=INV.find(d=>e2(d)===raw)||raw;
+  if(s.invSel.includes(item))s.invSel=s.invSel.filter(x=>x!==item);else s.invSel.push(item);
+  buildInvL();renderInvTags();document.getElementById('order-btn').disabled=s.invSel.length===0;
+}
+
+function renderInvTags(){
+  const s=G.st[G.cur];
+  document.getElementById('inv-tags').innerHTML=s.invSel.map(item=>'<div class="cs-tag-pill">'+item+'<span class="cs-tag-x" onclick="rmInv(\''+e2(item)+'\')">✕</span></div>').join('');
+}
+
+function rmInv(raw){const s=G.st[G.cur];const item=INV.find(d=>e2(d)===raw)||raw;s.invSel=s.invSel.filter(x=>x!==item);buildInvL();renderInvTags();document.getElementById('order-btn').disabled=s.invSel.length===0;}
+function filterInv(){buildInvL();}
+
+function orderInv(){
+  const pid=G.cur,s=G.st[pid],p=G.pts.find(x=>x.id===pid);
+  s.invSel.forEach(inv=>{
+    if(s.invOrdered.has(inv)) return;
+    s.invOrdered.add(inv);
+    const list=document.getElementById('results-list');
+    const card=document.createElement('div');
+    card.className='cs-result pending';card.id='rc-'+pid+'-'+inv.replace(/[^a-zA-Z0-9]/g,'');
+    card.innerHTML='<div class="cs-result-hdr"><span>'+inv+'</span><span class="cs-rs st-p">Pending</span></div>';
+    list.appendChild(card);
+    const rd=p.res&&p.res[inv];
+    setTimeout(()=>deliverRes(pid,inv,rd),(rd?rd.d:90)*1000);
+  });
+  s.invSel=[];buildInvL();renderInvTags();document.getElementById('order-btn').disabled=true;
+}
+
+function renderResults(){
+  const pid=G.cur,s=G.st[pid],p=G.pts.find(x=>x.id===pid);
+  const list=document.getElementById('results-list');list.innerHTML='';
+  s.invOrdered.forEach(inv=>{
+    const rd=p.res&&p.res[inv];const del=s.invDelivered[inv];
+    const card=document.createElement('div');
+    if(del){
+      card.className='cs-result'+(rd&&rd.c?' critical':'');card.id='rc-'+pid+'-'+inv.replace(/[^a-zA-Z0-9]/g,'');
+      card.innerHTML='<div class="cs-result-hdr"><span>'+inv+'</span><span class="cs-rs '+(rd&&rd.c?'st-c':'st-r')+'">'+(rd&&rd.c?'Critical':'Ready')+'</span></div><div class="cs-result-body">'+del.replace(/\n/g,'<br>')+'</div>';
+    } else {
+      card.className='cs-result pending';card.id='rc-'+pid+'-'+inv.replace(/[^a-zA-Z0-9]/g,'');
+      card.innerHTML='<div class="cs-result-hdr"><span>'+inv+'</span><span class="cs-rs st-p">Pending</span></div>';
+    }
+    list.appendChild(card);
+  });
+}
+
+function deliverRes(pid,inv,rd){
+  const s=G.st[pid];if(!s) return;
+  const report=rd?rd.r:'No significant abnormality.';
+  s.invDelivered[inv]=report;
+  const cid='rc-'+pid+'-'+inv.replace(/[^a-zA-Z0-9]/g,'');
+  const card=document.getElementById(cid);
+  if(card){
+    const ic=rd&&rd.c;card.className='cs-result'+(ic?' critical':'');
+    card.innerHTML='<div class="cs-result-hdr"><span>'+inv+'</span><span class="cs-rs '+(ic?'st-c':'st-r')+'">'+(ic?'Critical':'Ready')+'</span></div><div class="cs-result-body">'+report.replace(/\n/g,'<br>')+'</div>';
+  }
+  notif('<strong>Result ready:</strong> '+inv+' — '+(G.pts.find(x=>x.id===pid)?.name||''),rd&&rd.c,pid);
+}
+
+// ═══════════════════════════════════════
+// INTERVENTIONS
+// ═══════════════════════════════════════
+function renderIntv(){
+  const s=G.st[G.cur];
+  document.getElementById('interv-list').innerHTML=INTV.map(item=>'<div class="cs-interv-item '+(s.intv.includes(item)?'on':'')+'" onclick="tgIntv(\''+item+'\')"><div class="cs-check-circle">'+(s.intv.includes(item)?'✓':'')+'</div><span>'+item+'</span></div>').join('');
+}
+
+function tgIntv(item){const s=G.st[G.cur];if(s.intv.includes(item))s.intv=s.intv.filter(x=>x!==item);else s.intv.push(item);renderIntv();}
+
+// ═══════════════════════════════════════
+// DISPOSE
+// ═══════════════════════════════════════
+function buildDispL(){
+  const s=G.st[G.cur];
+  document.getElementById('disp-list').innerHTML=DISP.map(item=>'<div class="cs-sel-item '+(s.dispSel===item?'sel':'')+'" onclick="selDisp(\''+e2(item)+'\')">'+item+'</div>').join('');
+}
+
+function selDisp(raw){
+  const s=G.st[G.cur];const item=DISP.find(d=>e2(d)===raw)||raw;
+  s.dispSel=s.dispSel===item?null:item;
+  buildDispL();document.getElementById('disp-btn').disabled=!s.dispSel||!s.impr;
+}
+
+function doDispose(){
+  const pid=G.cur,s=G.st[pid];if(!s.dispSel||!s.impr) return;
+  s.disposed=true;calcScore(pid);renderDash();goDash();
+  notif('<strong>'+(G.pts.find(x=>x.id===pid)?.name||'Patient')+'</strong> disposed successfully',false,null);
+}
+
+// ═══════════════════════════════════════
+// SCORING
+// ═══════════════════════════════════════
+function calcScore(pid){
+  const p=G.pts.find(x=>x.id===pid),s=G.st[pid];if(!p||!s) return;
+  const hasCP=p.plan.some(cp=>s.plan.includes(cp));
+  let ps=0;if(hasCP)ps=s.plan.length===1?2:s.plan.length<=3?1:0;
+  const ord=Array.from(s.invOrdered);
+  const hasReq=p.inv.req.some(r=>ord.includes(r));
+  const unneeded=ord.filter(i=>!p.inv.req.includes(i)&&!p.inv.ok.includes(i)&&!ROUTINE.includes(i));
+  let is=0;if(hasReq)is=unneeded.length===0?2:unneeded.length<=2?1:0;
+  let ivs=2;
+  if(p.intv.length===0){ivs=s.intv.length===0?2:0;}
+  else{const ha=p.intv.every(r=>s.intv.includes(r));ivs=!ha?0:s.intv.length>p.intv.length?1:2;}
+  const imps=s.impr===p.impr?1:0;
+  const ds=s.dispSel===p.disp?1:0;
+  s.scoring={plan:ps,inv:is,intv:ivs,impr:imps,disp:ds};
+}
+
+// ═══════════════════════════════════════
+// END SHIFT
+// ═══════════════════════════════════════
+function endShift(){
+  clearInterval(G.ti);G.newPtTimers.forEach(t=>clearTimeout(t));
+  G.pts.forEach(p=>{const s=G.st[p.id];if(!s.disposed&&!s.deceased)s.scoring={plan:0,inv:0,intv:0,impr:0,disp:0};});
+  showSc('end');renderEnd();saveLB();
+}
+
+function renderEnd(){
+  document.getElementById('end-sub').textContent='Dr. '+G.nick+' · Night Shift · 20:00';
+  let tot=0,max=0,disp=0,dead=0;
+  G.pts.forEach(p=>{max+=8;const s=G.st[p.id];if(s.deceased){dead++;return;}if(s.disposed&&s.scoring){disp++;tot+=s.scoring.plan+s.scoring.inv+s.scoring.intv+s.scoring.impr+s.scoring.disp;}});
+  const pct=max>0?Math.round(tot/max*100):0;
+  const{grade,cls}=getGrade(pct);
+  document.getElementById('end-score').innerHTML=tot+'<span class="cs-score-denom">/'+max+'</span>';
+  document.getElementById('end-disp').textContent=disp;
+  document.getElementById('end-dead').textContent=dead;
+  const ge=document.getElementById('end-grade');ge.textContent=grade;ge.className='cs-grade '+cls;
+  const bar=document.getElementById('end-bar');
+  bar.innerHTML=Array.from({length:max},(_,i)=>'<div class="cs-bar-s '+(i<tot?'f':'')+'"></div>').join('');
+  document.getElementById('end-fb').textContent=genFb(pct);
+  document.getElementById('end-cards').innerHTML=G.pts.map((p,i)=>{
+    const s=G.st[p.id];
+    const ps=(s.deceased||!s.scoring)?0:(s.scoring.plan+s.scoring.inv+s.scoring.intv+s.scoring.impr+s.scoring.disp);
+    return'<div class="cs-pt-card '+(s.deceased?'dead':ps===8?'perfect':'')+'"><div class="cs-card-hdr" onclick="tgCard(\'ec'+i+'\',\'cv'+i+'\')"><div class="cs-card-l"><div class="cs-ctas ctas-'+p.ctas+'">'+p.ctas+'</div><div><div class="cs-card-name">'+p.name+' <span style="color:rgba(232,234,240,.3);font-size:10px;">· '+p.age+p.g+' · '+p.chief+'</span></div><div class="cs-card-dx">Diagnosis: <span style="color:'+(s.deceased?'#e8323a':'#32b464')+'">'+p.dx+'</span></div></div></div><div class="cs-card-r">'+(s.deceased?'<span class="tag t-deceased">Deceased</span>':s.disposed?'<span class="tag t-disposed">Disposed</span>':'<span class="tag t-wait">Not Seen</span>')+'<div class="cs-card-score">'+ps+'<span style="color:rgba(232,234,240,.25);font-size:13px;">/8</span></div><div class="cs-chev" id="cv'+i+'">▼</div></div></div><div class="cs-card-body" id="ec'+i+'">'+endRows(p,s)+'</div></div>';
+  }).join('');
+}
+
+function endRows(p,s){
+  if(!s.disposed||!s.scoring)return'<div class="cs-score-rows"><div class="cs-score-row"><div class="cs-row-l"><div class="cs-row-cat">Outcome</div><div class="cs-row-detail"><span class="bad">Patient not disposed during shift</span></div></div><div class="cs-row-pts pz">0/8</div></div></div>';
+  const sc=s.scoring;
+  return'<div class="cs-score-rows">'+[
+    {cat:'Plan',e:sc.plan,m:2,y:s.plan.join(', ')||'None',c:p.plan.join(' or ')},
+    {cat:'Investigations',e:sc.inv,m:2,y:Array.from(s.invOrdered).join(', ')||'None',c:p.inv.req.join(' + ')},
+    {cat:'Interventions',e:sc.intv,m:2,y:s.intv.join(', ')||'None',c:p.intv.join(', ')||'None required'},
+    {cat:'Impression',e:sc.impr,m:1,y:s.impr||'Not set',c:p.impr},
+    {cat:'Disposition',e:sc.disp,m:1,y:s.dispSel||'Not set',c:p.disp}
+  ].map(r=>'<div class="cs-score-row"><div class="cs-row-l"><div class="cs-row-cat">'+r.cat+'</div><div class="cs-row-detail">Your answer: <span class="'+(r.e===r.m?'ok':'bad')+'">'+r.y+'</span></div><div class="cs-row-note">Correct: '+r.c+'</div></div><div class="cs-row-pts '+(r.e===r.m?'pf':r.e>0?'pp':'pz')+'">'+r.e+'/'+r.m+'</div></div>').join('')+'</div>';
+}
+
+function tgCard(bid,cid){const b=document.getElementById(bid),c=document.getElementById(cid);const o=b.classList.toggle('open');c.style.transform=o?'rotate(180deg)':'';}
+
+function getGrade(pct){
+  if(pct>=90)return{grade:'A+',cls:'grade-a'};if(pct>=80)return{grade:'A',cls:'grade-a'};
+  if(pct>=75)return{grade:'B+',cls:'grade-b'};if(pct>=65)return{grade:'B',cls:'grade-b'};
+  if(pct>=55)return{grade:'C+',cls:'grade-c'};if(pct>=45)return{grade:'C',cls:'grade-c'};
+  return{grade:'D',cls:'grade-d'};
+}
+
+function genFb(pct){
+  if(pct>=85)return'Excellent shift, Dr. '+G.nick+'. Sharp diagnostic reasoning, efficient investigations, and strong clinical judgment throughout. This is the standard to maintain.';
+  if(pct>=70)return'Good shift overall, Dr. '+G.nick+'. Most cases handled correctly. Review any missed diagnoses carefully — the details matter in emergency medicine.';
+  if(pct>=50)return'Average performance this shift, Dr. '+G.nick+'. Some diagnoses were correct but others were missed. Focus on systematic history taking and always acting on critical results promptly.';
+  return'Difficult shift, Dr. '+G.nick+'. Several critical diagnoses were missed. Review each case carefully. Focus on early ECGs for chest pain and always acting on abnormal results immediately.';
+}
+
+// ═══════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════
+function saveLB(){
+  let tot=0;
+  G.pts.forEach(p=>{const s=G.st[p.id];if(s.disposed&&s.scoring)tot+=s.scoring.plan+s.scoring.inv+s.scoring.intv+s.scoring.impr+s.scoring.disp;});
+  try{
+    let scores=[];
+    try{const r=window.localStorage.getItem('cs_lb');if(r)scores=JSON.parse(r);}catch(e){}
+    scores.push({name:G.nick,score:tot,date:new Date().toISOString()});
+    scores.sort((a,b)=>b.score-a.score);
+    window.localStorage.setItem('cs_lb',JSON.stringify(scores.slice(0,10)));
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════
+function notif(text,isCrit,pid){
+  const c=document.getElementById('notif-container');
+  const d=document.createElement('div');d.className='cs-notif '+(isCrit?'crit':'norm');
+  d.innerHTML='<div class="cs-notif-text">'+text+'</div>'+(pid?'<button class="cs-notif-view" onclick="openPt(\''+pid+'\');this.closest(\'.cs-notif\').remove()">View</button>':'')+'<button class="cs-notif-close" onclick="this.closest(\'.cs-notif\').remove()">✕</button>';
+  c.appendChild(d);
+}
+
+// ═══════════════════════════════════════
+// OVERLAYS
+// ═══════════════════════════════════════
+function openOverlay(id){
+  document.getElementById(id).classList.add('active');
+  if(id==='lb-ov')loadLB();
+}
+function closeOverlay(id){document.getElementById(id).classList.remove('active');}
+
+function loadLB(){
+  const el=document.getElementById('lb-body');
+  try{
+    const r=window.localStorage.getItem('cs_lb');
+    if(!r){el.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:12px;color:rgba(232,234,240,.25);text-align:center;padding:24px;letter-spacing:2px;">No scores yet. Be the first.</div>';return;}
+    const scores=JSON.parse(r);
+    if(!scores.length){el.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:12px;color:rgba(232,234,240,.25);text-align:center;padding:24px;letter-spacing:2px;">No scores yet.</div>';return;}
+    el.innerHTML=scores.map((s,i)=>'<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05);font-family:\'Share Tech Mono\',monospace;"><div style="font-size:11px;color:#e8323a;min-width:28px;">#'+(i+1)+'</div><div style="font-size:13px;color:#e8eaf0;flex:1;">'+s.name+'</div><div style="font-size:13px;color:rgba(232,234,240,.5);">'+s.score+' pts</div></div>').join('');
+  }catch(e){el.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:12px;color:rgba(232,234,240,.25);text-align:center;padding:24px;">No scores yet.</div>';}
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.cs-overlay').forEach(o=>o.classList.remove('active'));});
+
+function playAgain(){clearInterval(G.ti);document.getElementById('nick').value='';document.getElementById('startBtn').disabled=true;showSc('welcome');}
+
+// UTILS
+function e2(s){return(s||'').replace(/['"\\\/]/g,'');}
+</script>
+</body>
+</html>
