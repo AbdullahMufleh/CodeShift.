@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CodeShift — ER Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:#0a0c0f;}
+body{font-family:'Share Tech Mono',monospace;color:#e8eaf0;min-height:100vh;}
+.screen{display:none;min-height:100vh;}
+.screen.active{display:block;}
+#screen-dashboard.active,#screen-patient.active{display:flex;flex-direction:column;}
+.cs-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+/* WELCOME */
+#screen-welcome{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:60px 40px;overflow:hidden;}
+.cs-corner{position:absolute;width:24px;height:24px;pointer-events:none;}
+.cs-corner.tl{top:16px;left:16px;border-top:1px solid #e8323a;border-left:1px solid #e8323a;}
+.cs-corner.tr{top:16px;right:16px;border-top:1px solid #e8323a;border-right:1px solid #e8323a;}
+.cs-corner.bl{bottom:16px;left:16px;border-bottom:1px solid #e8323a;border-left:1px solid #e8323a;}
+.cs-corner.br{bottom:16px;right:16px;border-bottom:1px solid #e8323a;border-right:1px solid #e8323a;}
+.cs-lb-btn{position:absolute;top:20px;right:52px;background:transparent;border:1px solid rgba(232,50,58,.5);color:#e8323a;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;padding:6px 14px;cursor:pointer;text-transform:uppercase;transition:all .2s;z-index:10;}
+.cs-lb-btn:hover{background:rgba(232,50,58,.15);}
+.cs-status-bar{font-size:11px;letter-spacing:3px;color:#e8323a;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;position:relative;z-index:2;}
+.cs-pulse{width:6px;height:6px;border-radius:50%;background:#e8323a;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.cs-logo{font-family:'Bebas Neue',sans-serif;font-size:96px;letter-spacing:8px;line-height:.9;text-align:center;color:#fff;text-shadow:0 0 60px rgba(232,50,58,.3);margin-bottom:8px;position:relative;z-index:2;}
+.cs-logo span{color:#e8323a;}
+.cs-tagline{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;color:rgba(232,234,240,.45);text-transform:uppercase;margin-bottom:28px;text-align:center;position:relative;z-index:2;}
+.cs-divider{width:40px;height:1px;background:rgba(232,50,58,.5);margin-bottom:28px;position:relative;z-index:2;}
+.cs-form{width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;align-items:center;position:relative;z-index:2;}
+.cs-input-label{font-size:10px;letter-spacing:3px;color:rgba(232,234,240,.35);text-transform:uppercase;align-self:flex-start;}
+.cs-input{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(232,50,58,.5);color:#e8eaf0;font-family:'Share Tech Mono',monospace;font-size:15px;letter-spacing:2px;padding:12px 16px;outline:none;border-radius:2px;}
+.cs-input::placeholder{color:rgba(232,234,240,.2);}
+.cs-start-btn{width:100%;background:#e8323a;border:none;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:5px;padding:14px 32px;cursor:pointer;transition:all .2s;border-radius:2px;margin-top:4px;}
+.cs-start-btn:hover{background:#ff3d46;transform:translateY(-1px);box-shadow:0 8px 32px rgba(232,50,58,.4);}
+.cs-start-btn:disabled{background:rgba(232,50,58,.25);color:rgba(255,255,255,.4);cursor:not-allowed;transform:none;box-shadow:none;}
+.cs-how-btn{background:transparent;border:1px solid rgba(232,234,240,.2);color:rgba(232,234,240,.6);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;padding:8px 20px;border-radius:2px;transition:all .2s;width:100%;}
+.cs-how-btn:hover{border-color:rgba(232,234,240,.5);color:#e8eaf0;background:rgba(255,255,255,.05);}
+.cs-dev{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;color:rgba(232,234,240,.55);text-transform:uppercase;white-space:nowrap;z-index:5;background:#0a0c0f;padding:4px 16px;}
+.cs-ecg{position:absolute;bottom:0;left:0;right:0;height:44px;pointer-events:none;z-index:2;opacity:.1;}
+
+/* OVERLAYS */
+.cs-overlay{display:none;position:fixed;inset:0;background:rgba(10,12,15,.92);z-index:300;align-items:center;justify-content:center;padding:40px;}
+.cs-overlay.active{display:flex;}
+.cs-modal{background:#0f1218;border:1px solid rgba(232,50,58,.3);border-radius:4px;padding:36px;max-width:480px;width:100%;position:relative;max-height:80vh;overflow-y:auto;}
+.cs-modal-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;color:#fff;margin-bottom:24px;}
+.cs-modal-title span{color:#e8323a;}
+.cs-modal-close{position:absolute;top:16px;right:16px;background:transparent;border:none;color:rgba(232,234,240,.4);font-size:20px;cursor:pointer;}
+.cs-modal-close:hover{color:#e8323a;}
+.cs-rule{display:flex;gap:12px;margin-bottom:14px;}
+.cs-rule-num{font-size:11px;color:#e8323a;letter-spacing:1px;min-width:24px;padding-top:1px;}
+.cs-rule-text{font-size:12px;color:rgba(232,234,240,.7);line-height:1.6;}
+.cs-rule-text strong{color:#e8eaf0;}
+
+/* TOPBAR */
+.cs-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(10,12,15,.98);z-index:10;flex-shrink:0;position:sticky;top:0;}
+.cs-logo-sm{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;color:#fff;}
+.cs-logo-sm span{color:#e8323a;}
+.cs-timer-d{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:#e8eaf0;}
+.cs-timer-d.warn{color:#e8a532;}
+.cs-timer-d.crit{color:#e8323a;animation:blink 1s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+.cs-doctor-tag{font-size:11px;letter-spacing:2px;color:rgba(232,234,240,.4);text-transform:uppercase;}
+.cs-back-btn{background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(232,234,240,.5);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:5px 12px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
+.cs-back-btn:hover{border-color:rgba(255,255,255,.3);color:#e8eaf0;}
+
+/* DASHBOARD */
+.cs-dash-body{padding:16px 20px;overflow-y:auto;flex:1;}
+.cs-stats-row{display:flex;gap:12px;margin-bottom:16px;}
+.cs-stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);padding:8px 16px;border-radius:3px;text-align:center;}
+.cs-stat-val{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:#e8eaf0;line-height:1;}
+.cs-stat-lbl{font-size:9px;letter-spacing:2px;color:rgba(232,234,240,.25);text-transform:uppercase;margin-top:2px;}
+.cs-sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.cs-sec-title{font-size:10px;letter-spacing:3px;color:rgba(232,234,240,.3);text-transform:uppercase;white-space:nowrap;}
+.cs-sec-line{flex:1;height:1px;background:rgba(255,255,255,.05);}
+.cs-pt-table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+.cs-pt-table thead th{font-size:9px;letter-spacing:2px;color:rgba(232,234,240,.25);text-transform:uppercase;padding:6px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.04);font-weight:400;}
+.cs-pt-row{cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(255,255,255,.04);}
+.cs-pt-row:hover{background:rgba(255,255,255,.04);}
+.cs-pt-row.deceased{background:rgba(232,50,58,.08);cursor:default;}
+.cs-pt-row.disposed{opacity:.5;cursor:default;}
+.cs-pt-row td{padding:10px;font-size:12px;vertical-align:middle;}
+.cs-ctas{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:16px;}
+.ctas-1{background:rgba(232,50,58,.2);color:#e8323a;border:1px solid rgba(232,50,58,.4);}
+.ctas-2{background:rgba(232,165,50,.2);color:#e8a532;border:1px solid rgba(232,165,50,.4);}
+.ctas-3{background:rgba(200,200,50,.15);color:#c8c832;border:1px solid rgba(200,200,50,.3);}
+.ctas-4{background:rgba(50,180,100,.15);color:#32b464;border:1px solid rgba(50,180,100,.3);}
+.pt-name{color:#e8eaf0;font-size:13px;}
+.pt-chief{color:rgba(232,234,240,.55);font-size:11px;}
+.pt-wait{color:rgba(232,234,240,.35);font-size:11px;}
+.vok{color:#32b464;font-size:11px;}
+.vbad{color:#e8323a;font-size:11px;}
+.tag{font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:3px;}
+.t-wait{color:rgba(232,234,240,.35);}
+.t-handover{background:rgba(100,100,232,.15);color:#8888e8;border:1px solid rgba(100,100,232,.3);}
+.t-deceased{background:rgba(232,50,58,.15);color:#e8323a;border:1px solid rgba(232,50,58,.3);}
+.t-disposed{background:rgba(50,180,100,.15);color:#32b464;border:1px solid rgba(50,180,100,.3);}
+.t-new{background:rgba(232,165,50,.15);color:#e8a532;border:1px solid rgba(232,165,50,.3);animation:newpulse 2s ease-in-out infinite;}
+@keyframes newpulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* PATIENT PAGE */
+.cs-pt-hdr{display:flex;align-items:center;gap:16px;}
+.cs-ctas-lg{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:20px;}
+.cs-pt-name-lg{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#fff;}
+.cs-pt-sub{font-size:10px;letter-spacing:1px;color:rgba(232,234,240,.35);}
+.cs-timer-sm{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:#e8eaf0;}
+.cs-pt-content{display:flex;flex:1;overflow:hidden;min-height:0;}
+.cs-tabs{width:160px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;padding:12px 0;gap:2px;}
+.cs-tab{padding:10px 16px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(232,234,240,.3);cursor:pointer;transition:all .15s;border-left:2px solid transparent;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.cs-tab:hover{color:rgba(232,234,240,.7);background:rgba(255,255,255,.02);}
+.cs-tab.active{color:#e8eaf0;border-left-color:#e8323a;background:rgba(232,50,58,.05);}
+.cs-tab-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.cs-panel{flex:1;overflow-y:auto;padding:16px 20px;display:none;}
+.cs-panel.active{display:block;}
+.cs-panel::-webkit-scrollbar{width:4px;}
+.cs-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px;}
+.cs-panel-lbl{font-size:9px;letter-spacing:3px;color:rgba(232,234,240,.25);text-transform:uppercase;margin-bottom:10px;}
+
+/* VITALS */
+.cs-vitals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.cs-vc{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:3px;padding:12px;text-align:center;}
+.cs-vc.ab{border-color:rgba(232,50,58,.3);background:rgba(232,50,58,.05);}
+.cs-vc.ok{border-color:rgba(50,180,100,.2);}
+.cs-vlbl{font-size:9px;letter-spacing:2px;color:rgba(232,234,240,.3);text-transform:uppercase;margin-bottom:4px;}
+.cs-vval{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;}
+.cs-vc.ok .cs-vval{color:#32b464;}
+.cs-vc.ab .cs-vval{color:#e8323a;}
+.cs-vunit{font-size:9px;color:rgba(232,234,240,.25);margin-top:2px;}
+
+/* CHAT */
+.cs-chat-box{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:3px;height:260px;overflow-y:auto;padding:14px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px;}
+.cs-chat-box::-webkit-scrollbar{width:3px;}
+.cs-chat-box::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);}
+.cs-msg{display:flex;flex-direction:column;gap:2px;max-width:85%;}
+.cs-msg.patient{align-self:flex-start;}
+.cs-msg.doctor{align-self:flex-end;}
+.cs-msg.system{align-self:center;max-width:100%;}
+.cs-msg-lbl{font-size:9px;letter-spacing:1px;color:rgba(232,234,240,.25);text-transform:uppercase;}
+.cs-msg.doctor .cs-msg-lbl{text-align:right;}
+.cs-bubble{padding:8px 12px;border-radius:3px;font-size:12px;line-height:1.5;letter-spacing:.3px;}
+.cs-msg.patient .cs-bubble{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:rgba(232,234,240,.85);}
+.cs-msg.doctor .cs-bubble{background:rgba(232,50,58,.1);border:1px solid rgba(232,50,58,.2);color:rgba(232,234,240,.9);}
+.cs-msg.system .cs-bubble{background:rgba(100,100,232,.08);border:1px solid rgba(100,100,232,.2);color:rgba(180,180,232,.8);font-size:11px;text-align:center;width:100%;}
+.cs-chat-row{display:flex;gap:8px;margin-bottom:8px;}
+.cs-chat-input{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-bottom-color:rgba(232,50,58,.4);color:#e8eaf0;font-family:'Share Tech Mono',monospace;font-size:12px;padding:8px 12px;outline:none;border-radius:2px;}
+.cs-chat-input::placeholder{color:rgba(232,234,240,.65);}
+.cs-chat-input:disabled{opacity:.4;cursor:not-allowed;}
+.cs-send-btn{background:#e8323a;border:none;color:#fff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:8px 14px;cursor:pointer;border-radius:2px;text-transform:uppercase;}
+.cs-send-btn:hover{background:#ff3d46;}
+.cs-send-btn:disabled{background:rgba(232,50,58,.3);cursor:not-allowed;}
+.cs-end-assess{background:transparent;border:1px solid rgba(232,165,50,.4);color:#e8a532;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:8px 14px;cursor:pointer;border-radius:2px;text-transform:uppercase;width:100%;}
+.cs-end-assess:hover{background:rgba(232,165,50,.08);}
+
+/* LISTS */
+.cs-search{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-bottom-color:rgba(232,50,58,.4);color:#e8eaf0;font-family:'Share Tech Mono',monospace;font-size:12px;padding:8px 12px;outline:none;border-radius:2px;margin-bottom:10px;}
+.cs-search::placeholder{color:rgba(232,234,240,.4);}
+.cs-chk-list{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;margin-bottom:14px;}
+.cs-chk-list::-webkit-scrollbar{width:3px;}
+.cs-chk-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);}
+.cs-chk-item{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:2px;cursor:pointer;font-size:11px;color:rgba(232,234,240,.65);}
+.cs-chk-item:hover{background:rgba(255,255,255,.04);}
+.cs-chk-item.sel{background:rgba(232,50,58,.08);color:#e8eaf0;}
+.cs-chkbox{width:14px;height:14px;border:1px solid rgba(255,255,255,.2);border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#e8323a;}
+.cs-chk-item.sel .cs-chkbox{border-color:#e8323a;background:rgba(232,50,58,.15);}
+.cs-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;min-height:24px;}
+.cs-tag-pill{background:rgba(232,50,58,.1);border:1px solid rgba(232,50,58,.3);color:#e8323a;font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:2px;display:flex;align-items:center;gap:6px;}
+.cs-tag-x{cursor:pointer;opacity:.6;font-size:11px;}
+.cs-tag-x:hover{opacity:1;}
+.cs-confirm-btn{background:#e8323a;border:none;color:#fff;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;padding:10px 20px;cursor:pointer;border-radius:2px;text-transform:uppercase;width:100%;}
+.cs-confirm-btn:hover{background:#ff3d46;}
+.cs-confirm-btn:disabled{background:rgba(232,50,58,.25);color:rgba(255,255,255,.4);cursor:not-allowed;}
+.cs-divider{height:1px;background:rgba(255,255,255,.05);margin:16px 0;}
+
+/* RESULTS */
+.cs-results{display:flex;flex-direction:column;gap:10px;}
+.cs-result{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:12px 14px;}
+.cs-result.pending{border-color:rgba(232,165,50,.2);}
+.cs-result.critical{border-color:rgba(232,50,58,.3);background:rgba(232,50,58,.05);}
+.cs-result-hdr{font-size:11px;letter-spacing:1px;color:rgba(232,234,240,.5);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;}
+.cs-rs{font-size:9px;padding:2px 6px;border-radius:2px;}
+.st-p{background:rgba(232,165,50,.15);color:#e8a532;border:1px solid rgba(232,165,50,.3);}
+.st-r{background:rgba(50,180,100,.15);color:#32b464;border:1px solid rgba(50,180,100,.3);}
+.st-c{background:rgba(232,50,58,.15);color:#e8323a;border:1px solid rgba(232,50,58,.3);}
+.cs-result-body{font-size:11px;color:rgba(232,234,240,.65);line-height:1.6;margin-top:6px;}
+
+/* INTERVENTIONS */
+.cs-interv-list{display:flex;flex-direction:column;gap:6px;}
+.cs-interv-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:3px;cursor:pointer;font-size:12px;color:rgba(232,234,240,.6);}
+.cs-interv-item:hover{background:rgba(255,255,255,.06);color:#e8eaf0;}
+.cs-interv-item.on{background:rgba(50,180,100,.08);border-color:rgba(50,180,100,.3);color:#32b464;}
+.cs-check-circle{width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+.cs-interv-item.on .cs-check-circle{border-color:#32b464;background:rgba(50,180,100,.15);color:#32b464;}
+.cs-sel-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;margin-bottom:12px;}
+.cs-sel-item{padding:8px 12px;border-radius:2px;cursor:pointer;font-size:11px;color:rgba(232,234,240,.55);border:1px solid transparent;}
+.cs-sel-item:hover{background:rgba(255,255,255,.04);}
+.cs-sel-item.sel{background:rgba(232,50,58,.08);border-color:rgba(232,50,58,.25);color:#e8eaf0;}
+
+/* END SCREEN */
+#screen-end{overflow-y:auto;min-height:100vh;}
+.cs-end-wrap{max-width:760px;margin:0 auto;padding:40px 24px 60px;position:relative;z-index:1;}
+.cs-end-hdr{text-align:center;margin-bottom:40px;}
+.cs-shift-over{font-size:10px;letter-spacing:4px;color:#e8323a;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.cs-shift-line{flex:1;max-width:60px;height:1px;background:rgba(232,50,58,.3);}
+.cs-end-title{font-family:'Bebas Neue',sans-serif;font-size:64px;letter-spacing:6px;color:#fff;line-height:1;margin-bottom:8px;}
+.cs-end-title span{color:#e8323a;}
+.cs-end-sub{font-size:11px;letter-spacing:2px;color:rgba(232,234,240,.3);text-transform:uppercase;}
+.cs-score-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+.cs-score-big{font-family:'Bebas Neue',sans-serif;font-size:72px;letter-spacing:4px;line-height:1;color:#fff;}
+.cs-score-denom{font-size:20px;color:rgba(232,234,240,.3);}
+.cs-score-lbl{font-size:9px;letter-spacing:3px;color:rgba(232,234,240,.25);text-transform:uppercase;margin-bottom:4px;}
+.cs-grade{font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:4px;padding:8px 20px;border-radius:3px;}
+.grade-a{color:#32b464;border:2px solid rgba(50,180,100,.4);background:rgba(50,180,100,.08);}
+.grade-b{color:#74b4e8;border:2px solid rgba(116,180,232,.4);background:rgba(116,180,232,.08);}
+.grade-c{color:#e8a532;border:2px solid rgba(232,165,50,.4);background:rgba(232,165,50,.08);}
+.grade-d{color:#e8323a;border:2px solid rgba(232,50,58,.4);background:rgba(232,50,58,.08);}
+.cs-score-stats{display:flex;flex-direction:column;gap:10px;}
+.cs-score-stat{display:flex;align-items:center;gap:12px;}
+.cs-sslbl{font-size:10px;letter-spacing:1px;color:rgba(232,234,240,.35);text-transform:uppercase;}
+.cs-ssval{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;min-width:36px;text-align:right;}
+.vg{color:#32b464;}.vb{color:#e8323a;}.vn{color:#e8eaf0;}
+.cs-attend-box{background:rgba(100,100,232,.05);border:1px solid rgba(100,100,232,.2);border-left:3px solid rgba(100,100,232,.5);border-radius:3px;padding:16px 20px;margin-bottom:24px;}
+.cs-attend-lbl{font-size:9px;letter-spacing:3px;color:rgba(180,180,232,.5);text-transform:uppercase;margin-bottom:8px;}
+.cs-attend-text{font-size:12px;color:rgba(200,200,232,.8);line-height:1.7;}
+.cs-pt-cards{display:flex;flex-direction:column;gap:12px;margin-bottom:32px;}
+.cs-pt-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.cs-pt-card.dead{border-color:rgba(232,50,58,.25);background:rgba(232,50,58,.04);}
+.cs-pt-card.perfect{border-color:rgba(50,180,100,.2);}
+.cs-card-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;gap:12px;}
+.cs-card-hdr:hover{background:rgba(255,255,255,.03);}
+.cs-card-l{display:flex;align-items:center;gap:12px;flex:1;}
+.cs-card-name{font-size:13px;letter-spacing:1px;color:#e8eaf0;}
+.cs-card-dx{font-size:10px;color:rgba(232,234,240,.35);}
+.cs-card-r{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+.cs-card-score{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:#e8eaf0;}
+.cs-chev{font-size:10px;color:rgba(232,234,240,.2);transition:transform .2s;}
+.cs-card-body{display:none;padding:0 16px 16px;border-top:1px solid rgba(255,255,255,.04);}
+.cs-card-body.open{display:block;}
+.cs-score-rows{display:flex;flex-direction:column;margin-top:12px;}
+.cs-score-row{display:flex;align-items:flex-start;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;}
+.cs-score-row:last-child{border-bottom:none;}
+.cs-row-l{flex:1;}
+.cs-row-cat{font-size:9px;letter-spacing:2px;color:rgba(232,234,240,.3);text-transform:uppercase;margin-bottom:4px;}
+.cs-row-detail{font-size:11px;color:rgba(232,234,240,.55);line-height:1.5;}
+.cs-row-note{font-size:10px;color:rgba(232,234,240,.3);margin-top:3px;}
+.cs-row-pts{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;min-width:48px;text-align:right;flex-shrink:0;}
+.ok{color:#32b464;}.bad{color:#e8323a;}.neu{color:#e8a532;}
+.pf{color:#32b464;}.pp{color:#e8a532;}.pz{color:#e8323a;}
+.cs-bar{display:flex;gap:3px;margin-top:10px;}
+.cs-bar-s{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.08);}
+.cs-bar-s.f{background:#32b464;}
+.cs-play-again{background:#e8323a;border:none;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;padding:14px 40px;cursor:pointer;border-radius:2px;}
+.cs-play-again:hover{background:#ff3d46;transform:translateY(-1px);}
+
+/* NOTIFICATIONS */
+#notif-container{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:200;width:420px;max-width:92%;}
+.cs-notif{background:#0f1218;padding:10px 14px;display:flex;align-items:center;gap:10px;border-radius:2px;animation:slideUp .3s ease;}
+.cs-notif.norm{border:1px solid rgba(232,165,50,.4);border-left:3px solid #e8a532;}
+.cs-notif.crit{border:1px solid rgba(232,50,58,.4);border-left:3px solid #e8323a;}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.cs-notif-text{flex:1;font-size:11px;color:rgba(232,234,240,.8);letter-spacing:.5px;line-height:1.4;}
+.cs-notif-text strong{color:#e8eaf0;}
+.cs-notif-view{background:transparent;border:1px solid rgba(232,165,50,.4);color:#e8a532;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:4px 8px;cursor:pointer;border-radius:2px;white-space:nowrap;}
+.cs-notif-close{background:transparent;border:none;color:rgba(232,234,240,.3);font-size:16px;cursor:pointer;line-height:1;}
+.cs-notif-close:hover{color:#e8eaf0;}
+@keyframes fadePulse{0%,100%{opacity:1}50%{opacity:.4}}
+.loading-dots{animation:fadePulse 1.2s ease-in-out infinite;color:rgba(232,234,240,.4);}
+
+/* API KEY */
+.cs-api-banner{background:rgba(232,165,50,.08);border:1px solid rgba(232,165,50,.25);border-radius:3px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.cs-api-banner.connected{background:rgba(50,180,100,.06);border-color:rgba(50,180,100,.2);}
+.cs-api-lbl{font-size:10px;letter-spacing:1px;color:rgba(232,234,240,.4);flex-shrink:0;text-transform:uppercase;}
+.cs-api-input{flex:1;background:transparent;border:none;border-bottom:1px solid rgba(232,165,50,.3);color:#e8eaf0;font-family:'Share Tech Mono',monospace;font-size:11px;padding:2px 6px;outline:none;}
+.cs-api-input::placeholder{color:rgba(232,234,240,.2);}
+.cs-api-btn{background:rgba(232,165,50,.15);border:1px solid rgba(232,165,50,.3);color:#e8a532;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:4px 10px;cursor:pointer;border-radius:2px;text-transform:uppercase;flex-shrink:0;}
+.cs-api-status{font-size:10px;letter-spacing:1px;color:#32b464;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="cs-grid"></div>
+
+<!-- WELCOME -->
+<div id="screen-welcome" class="screen active">
+  <div class="cs-corner tl"></div><div class="cs-corner tr"></div>
+  <div class="cs-corner bl"></div><div class="cs-corner br"></div>
+  <button class="cs-lb-btn" onclick="openOverlay('lb-ov')">Leaderboard</button>
+  <div class="cs-status-bar"><div class="cs-pulse"></div>Emergency Department — Night Shift</div>
+  <div class="cs-logo">CODE<span>SHIFT</span></div>
+  <div class="cs-tagline">Can you handle a chaotic night shift?</div>
+  <div class="cs-divider"></div>
+  <div class="cs-form">
+    <div class="cs-input-label">Enter your callsign</div>
+    <input class="cs-input" id="nick" type="text" placeholder="Dr. ________" maxlength="24" oninput="document.getElementById('startBtn').disabled=this.value.trim().length<2"/>
+    <button class="cs-start-btn" id="startBtn" onclick="startGame()" disabled>Begin Shift</button>
+    <button class="cs-how-btn" onclick="openOverlay('how-ov')">How to play</button>
+  </div>
+  <div class="cs-dev">Developed by Abdullah Almufleh</div>
+  <svg class="cs-ecg" viewBox="0 0 680 44" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <polyline points="0,22 60,22 70,22 75,4 80,40 85,22 100,22 110,22 115,14 120,30 125,22 160,22 170,22 175,4 180,40 185,22 200,22 210,22 215,14 220,30 225,22 260,22 270,22 275,4 280,40 285,22 300,22 310,22 315,14 320,30 325,22 360,22 370,22 375,4 380,40 385,22 400,22 410,22 415,14 420,30 425,22 460,22 470,22 475,4 480,40 485,22 500,22 510,22 515,14 520,30 525,22 560,22 570,22 575,4 580,40 585,22 600,22 610,22 615,14 620,30 625,22 680,22" fill="none" stroke="#74ff74" stroke-width="1.5"/>
+  </svg>
+</div>
+
+<!-- DASHBOARD -->
+<div id="screen-dashboard" class="screen">
+  <div class="cs-topbar">
+    <div class="cs-logo-sm">CODE<span>SHIFT</span></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:10px;letter-spacing:2px;color:rgba(232,234,240,.3);">TIME REMAINING</div>
+      <div class="cs-timer-d" id="dash-timer">20:00</div>
+      <div class="cs-pulse"></div>
+    </div>
+    <div class="cs-doctor-tag" id="dash-doc">Dr. —</div>
+  </div>
+  <div class="cs-dash-body">
+    <div class="cs-stats-row">
+      <div class="cs-stat"><div class="cs-stat-val" id="s-total">0</div><div class="cs-stat-lbl">Patients</div></div>
+      <div class="cs-stat"><div class="cs-stat-val" id="s-disp" style="color:#32b464">0</div><div class="cs-stat-lbl">Disposed</div></div>
+      <div class="cs-stat"><div class="cs-stat-val" id="s-dead" style="color:#e8323a">0</div><div class="cs-stat-lbl">Deceased</div></div>
+      <div class="cs-stat"><div class="cs-stat-val" id="s-pend">0</div><div class="cs-stat-lbl">Pending</div></div>
+    </div>
+    <div class="cs-sec-hdr"><div class="cs-sec-title">Handover</div><div class="cs-sec-line"></div></div>
+    <table class="cs-pt-table"><thead><tr><th>CTAS</th><th>Patient</th><th>Chief Complaint</th><th>Waiting</th><th>HR</th><th>BP</th><th>Status</th></tr></thead><tbody id="handover-tbody"></tbody></table>
+    <div class="cs-sec-hdr"><div class="cs-sec-title">Waiting Patients</div><div class="cs-sec-line"></div></div>
+    <table class="cs-pt-table"><thead><tr><th>CTAS</th><th>Patient</th><th>Chief Complaint</th><th>Waiting</th><th>HR</th><th>BP</th><th>Status</th></tr></thead><tbody id="waiting-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- PATIENT PAGE -->
+<div id="screen-patient" class="screen">
+  <div class="cs-topbar">
+    <button class="cs-back-btn" onclick="goDash()">← Dashboard</button>
+    <div class="cs-pt-hdr">
+      <div class="cs-ctas-lg" id="pt-ctas"></div>
+      <div><div class="cs-pt-name-lg" id="pt-name"></div><div class="cs-pt-sub" id="pt-sub"></div></div>
+    </div>
+    <div class="cs-timer-sm" id="pt-timer">20:00</div>
+  </div>
+  <div class="cs-pt-content">
+    <div class="cs-tabs">
+      <div class="cs-tab active" onclick="swTab(event,'vitals')"><div class="cs-tab-dot"></div>Vitals</div>
+      <div class="cs-tab" onclick="swTab(event,'history')"><div class="cs-tab-dot"></div>History</div>
+      <div class="cs-tab" onclick="swTab(event,'plan')"><div class="cs-tab-dot"></div>Plan</div>
+      <div class="cs-tab" onclick="swTab(event,'investigations')"><div class="cs-tab-dot"></div>Investigations</div>
+      <div class="cs-tab" onclick="swTab(event,'interventions')"><div class="cs-tab-dot"></div>Interventions</div>
+      <div class="cs-tab" onclick="swTab(event,'dispose')"><div class="cs-tab-dot"></div>Disposition</div>
+    </div>
+    <div class="cs-panel active" id="panel-vitals"><div class="cs-panel-lbl">Patient Vitals</div><div class="cs-vitals-grid" id="vitals-grid"></div></div>
+    <div class="cs-panel" id="panel-history">
+      <div class="cs-api-banner" id="api-banner">
+        <div class="cs-api-lbl">API Key</div>
+        <input class="cs-api-input" id="api-key-input" type="password" placeholder="sk-ant-api03-..."/>
+        <button class="cs-api-btn" onclick="saveApiKey()">Connect</button>
+      </div>
+      <div class="cs-panel-lbl">History Taking & Physical Exam</div>
+      <div class="cs-chat-box" id="chat-box"></div>
+      <div class="cs-chat-row">
+        <input class="cs-chat-input" id="chat-in" placeholder="Ask the patient or request a physical exam..." onkeydown="if(event.key==='Enter')doChat()"/>
+        <button class="cs-send-btn" id="send-btn" onclick="doChat()">Send</button>
+      </div>
+      <button class="cs-end-assess" id="end-assess-btn" onclick="endAssess()">End Assessment → Proceed to Plan</button>
+    </div>
+    <div class="cs-panel" id="panel-plan">
+      <div class="cs-panel-lbl">Step 1 — Rule out (select differentials)</div>
+      <input class="cs-search" id="plan-s" placeholder="Search diagnoses..." oninput="filterDx('plan-s','plan-list','plan')"/>
+      <div class="cs-tags" id="plan-tags"></div>
+      <div class="cs-chk-list" id="plan-list"></div>
+      <div class="cs-divider"></div>
+      <div class="cs-panel-lbl">Step 2 — Final Impression (after results)</div>
+      <input class="cs-search" id="impr-s" placeholder="Search final diagnosis..." oninput="filterDx('impr-s','impr-list','impr')"/>
+      <div id="impr-sel" style="min-height:24px;font-size:11px;color:#e8a532;letter-spacing:1px;margin-bottom:10px;"></div>
+      <div class="cs-chk-list" id="impr-list"></div>
+    </div>
+    <div class="cs-panel" id="panel-investigations">
+      <div class="cs-panel-lbl">Order Investigations</div>
+      <input class="cs-search" id="inv-s" placeholder="Search labs and imaging..." oninput="filterInv()"/>
+      <div class="cs-tags" id="inv-tags"></div>
+      <div class="cs-chk-list" id="inv-list"></div>
+      <button class="cs-confirm-btn" id="order-btn" onclick="orderInv()" style="margin-top:10px;" disabled>Order Selected Investigations</button>
+      <div class="cs-divider"></div>
+      <div class="cs-panel-lbl">Results</div>
+      <div class="cs-results" id="results-list"></div>
+    </div>
+    <div class="cs-panel" id="panel-interventions">
+      <div class="cs-panel-lbl">Interventions — Select all that apply</div>
+      <div class="cs-interv-list" id="interv-list"></div>
+    </div>
+    <div class="cs-panel" id="panel-dispose">
+      <div class="cs-panel-lbl">Disposition</div>
+      <div style="font-size:11px;color:rgba(232,234,240,.4);margin-bottom:12px;line-height:1.6;">Set your final impression in the Plan tab before disposing.</div>
+      <div class="cs-sel-list" id="disp-list"></div>
+      <button class="cs-confirm-btn" id="disp-btn" onclick="doDispose()" disabled>Dispose Patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- END SCREEN -->
+<div id="screen-end" class="screen">
+  <div class="cs-end-wrap">
+    <div class="cs-end-hdr">
+      <div class="cs-shift-over"><div class="cs-shift-line"></div>Shift Complete<div class="cs-shift-line"></div></div>
+      <div class="cs-end-title">END OF <span>SHIFT</span></div>
+      <div class="cs-end-sub" id="end-sub">Dr. — · Night Shift</div>
+    </div>
+    <div class="cs-score-card">
+      <div>
+        <div class="cs-score-lbl">Total Score</div>
+        <div class="cs-score-big" id="end-score">0<span class="cs-score-denom">/0</span></div>
+        <div class="cs-bar" id="end-bar"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
+        <div class="cs-score-stats">
+          <div class="cs-score-stat"><div class="cs-sslbl">Disposed</div><div class="cs-ssval vg" id="end-disp">0</div></div>
+          <div class="cs-score-stat"><div class="cs-sslbl">Deceased</div><div class="cs-ssval vb" id="end-dead">0</div></div>
+        </div>
+        <div class="cs-grade" id="end-grade">—</div>
+      </div>
+    </div>
+    <div class="cs-attend-box"><div class="cs-attend-lbl">Attending Feedback</div><div class="cs-attend-text" id="end-fb">—</div></div>
+    <div class="cs-sec-hdr"><div class="cs-sec-title">Patient Breakdown</div><div class="cs-sec-line"></div></div>
+    <div class="cs-pt-cards" id="end-cards"></div>
+    <div style="display:flex;justify-content:center;"><button class="cs-play-again" onclick="playAgain()">Play Again</button></div>
+    <div style="text-align:center;font-size:10px;letter-spacing:2px;color:rgba(232,234,240,.15);text-transform:uppercase;margin-top:40px;">Developed by Abdullah Almufleh</div>
+  </div>
+</div>
+
+<!-- OVERLAYS -->
+<div class="cs-overlay" id="how-ov">
+  <div class="cs-modal">
+    <div class="cs-modal-title">HOW TO <span>PLAY</span></div>
+    <button class="cs-modal-close" onclick="closeOverlay('how-ov')">✕</button>
+    <div class="cs-rule"><div class="cs-rule-num">01</div><div class="cs-rule-text">You have <strong>20 minutes</strong> to manage a full ER shift. The clock is always running.</div></div>
+    <div class="cs-rule"><div class="cs-rule-num">02</div><div class="cs-rule-text">You receive a <strong>handover</strong> of 1–2 patients with pending results, plus a waiting list ranked by acuity.</div></div>
+    <div class="cs-rule"><div class="cs-rule-num">03</div><div class="cs-rule-text">For each patient: take <strong>history</strong>, perform <strong>physical exam</strong>, set your <strong>plan</strong>, order <strong>investigations</strong>, give <strong>interventions</strong>, then <strong>dispose</strong>.</div></div>
+    <div class="cs-rule"><div class="cs-rule-num">04</div><div class="cs-rule-text"><strong>Results arrive mid-shift</strong> as notifications. Act on critical findings or your patient suffers.</div></div>
+    <div class="cs-rule"><div class="cs-rule-num">05</div><div class="cs-rule-text">Miss the right diagnosis or critical intervention and the patient <strong>dies</strong>. Scores revealed only at the end.</div></div>
+    <div class="cs-rule"><div class="cs-rule-num">06</div><div class="cs-rule-text">Each patient is worth <strong>8 points</strong>: Plan · Investigations · Interventions · Impression · Disposition.</div></div>
+  </div>
+</div>
+<div class="cs-overlay" id="lb-ov">
+  <div class="cs-modal">
+    <div class="cs-modal-title">LEADER<span>BOARD</span></div>
+    <button class="cs-modal-close" onclick="closeOverlay('lb-ov')">✕</button>
+    <div id="lb-body"><div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:rgba(232,234,240,.25);text-align:center;padding:24px;letter-spacing:2px;">No scores yet. Be the first.</div></div>
+  </div>
+</div>
+<div id="notif-container"></div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const DX=['ACS / NSTEMI','STEMI','Aortic Dissection','Pulmonary Embolism','Pneumothorax','Pericarditis','Pneumonia','Acute Heart Failure','Asthma Exacerbation','COPD Exacerbation','Anaphylaxis','Appendicitis','Pancreatitis','Cholecystitis','Bowel Obstruction','Mesenteric Ischemia','Perforated Peptic Ulcer','Ruptured Ectopic Pregnancy','Aortic Aneurysm Rupture','Renal Colic','Subarachnoid Hemorrhage','Meningitis','Hypertensive Emergency','Migraine','Ischemic Stroke','Hemorrhagic Stroke','Sepsis','DKA','Hypoglycemia','Hypokalemia','DVT','Cellulitis','Fracture','Arrhythmia','Hypovolemia','Vasovagal Syncope','UTI','Gastroenteritis','Spinal Compression Fracture','Cauda Equina Syndrome','Spinal Cord Compression','GERD','Musculoskeletal Pain'];
+const INV=['ECG','CBC','BMP / Electrolytes','Renal Function','Liver Function','Coagulation','Troponin','D-Dimer','BNP','Lipase','Amylase','Beta-HCG','Blood Culture','Lactate','ABG','Blood Glucose','Urinalysis','CRP','Lumbar Puncture','Chest X-Ray','CT Head (without contrast)','CT Abdomen/Pelvis (with contrast)','CT Abdomen/Pelvis (without contrast)','CTA Chest - PE Protocol','CTA Chest - Dissection Protocol','CTA Abdomen','Ultrasound Abdomen','Ultrasound Pelvis','Echo','X-Ray Abdomen','X-Ray Extremity','X-Ray Spine','MRI Brain','MRI Spine','Doppler Ultrasound Legs'];
+const INTV=['Supplemental O2','IV Fluids','Aspirin','Broad-Spectrum Antibiotics','Beta Blockers','Diuretics','Nebulizers','Corticosteroids','Epinephrine','IV Dextrose'];
+const DISP=['Discharge Home','Observation then Discharge','Refer to Internal Medicine','Refer to Cardiology','Activate STEMI Code','Refer to Cardiothoracic Surgery','Refer to General Surgery','Refer to Orthopedics','Refer to ENT','Refer to ICU','Refer to Neurology','Refer to Neurosurgery','Refer to Urology','Refer to Obstetrics and Gynecology'];
+const ROUTINE=['CBC','BMP / Electrolytes','Renal Function','Liver Function','Coagulation','CRP'];
+
+const POOL=[
+  {id:'p1',name:'Sara Mitchell',age:42,g:'F',co:'Hypertension, Type 2 Diabetes',chief:'Shortness of Breath',ctas:2,wait:18,ho:false,
+   v:{hr:124,hrOk:false,bp:'88/58',bpOk:false,spo2:'89%',spo2Ok:false,temp:'36.8',tempOk:true,rr:28,rrOk:false,gcs:15,gcsOk:true},
+   dx:'Pulmonary Embolism',
+   ctx:`You are Sara Mitchell, a 42-year-old female patient in the emergency room. You have hypertension and type 2 diabetes. You are worried and scared. You do NOT know your diagnosis. You have a pulmonary embolism but are unaware of this medical term.
+
+Your symptoms (only reveal when directly asked):
+- Sudden shortness of breath that started 8 hours ago
+- Sharp right-sided chest pain that gets worse when you breathe in
+- You returned from a long 14-hour flight from London 5 days ago
+- Your right leg has been swollen and sore for the past 3 days
+- You feel dizzy and lightheaded
+- No fever, no cough
+- You take amlodipine for blood pressure and metformin for diabetes
+
+Physical examination findings (reveal only if doctor asks to examine you):
+- Right calf is tender and slightly swollen when pressed
+- Breathing sounds are reduced at the bottom of the right lung
+- Heart is beating fast
+
+STRICT RULES:
+- Answer ONLY what the doctor directly asks. NEVER volunteer extra information.
+- Speak like a worried patient, not a medical professional. Use simple everyday words.
+- Keep every answer to 1-3 sentences maximum.
+- If asked something you would not know as a patient (like oxygen saturation numbers), say you do not know.
+- Do not mention the flight, the leg swelling, or any other specific symptom unless directly asked about it.`,
+   plan:['Pulmonary Embolism'],
+   inv:{req:['CTA Chest - PE Protocol'],ok:['D-Dimer','ECG','ABG','Chest X-Ray','BNP','Doppler Ultrasound Legs','Troponin','CBC','BMP / Electrolytes','Renal Function','Coagulation']},
+   intv:['Supplemental O2','IV Fluids'],impr:'Pulmonary Embolism',disp:'Refer to Internal Medicine',
+   res:{
+     'ECG':{d:5,c:false,r:'Sinus tachycardia at 124 bpm. S1Q3T3 pattern present. Right heart strain pattern. No ST elevation or depression.'},
+     'D-Dimer':{d:60,c:true,r:'D-Dimer: 4.8 ug/mL (Reference <0.5 ug/mL). MARKEDLY ELEVATED. High probability of thromboembolic event. Further imaging strongly recommended.'},
+     'CTA Chest - PE Protocol':{d:100,c:true,r:'CTA CHEST PE PROTOCOL\n\nFINDINGS: Large filling defect identified in the right main pulmonary artery extending into right lower lobe segmental arteries. Additional smaller filling defects in left lower lobe segmental arteries.\n\nIMPRESSION: BILATERAL PULMONARY EMBOLISM confirmed. Right-sided predominant. Right heart strain features present.\n\nURGENT CLINICAL CORRELATION REQUIRED.'},
+     'Chest X-Ray':{d:70,c:false,r:'PA Chest X-Ray: Heart size normal. Right lower zone subsegmental atelectasis. Westermark sign noted right side. No pneumothorax. No consolidation.'},
+     'ABG':{d:60,c:true,r:'pH 7.48, PaO2 58 mmHg, PaCO2 30 mmHg, HCO3 22, SaO2 88%. Hypoxaemia with respiratory alkalosis. Consistent with pulmonary embolism.'},
+     'CBC':{d:75,c:false,r:'WBC 9.2 x10/L, Hgb 13.1 g/dL, Platelets 224. No significant abnormality.'},
+     'Troponin':{d:65,c:false,r:'Troponin I: 0.04 ng/mL (Ref <0.04). Borderline - not significantly elevated. No myocardial injury.'},
+     'BNP':{d:75,c:false,r:'BNP: 380 pg/mL (Ref <100). Elevated - consistent with right ventricular strain.'},
+     'Doppler Ultrasound Legs':{d:105,c:true,r:'DOPPLER ULTRASOUND BILATERAL LOWER EXTREMITIES\n\nFINDINGS: Non-compressible right popliteal vein with absent flow on Doppler. Acute right popliteal deep vein thrombosis confirmed.\n\nLeft lower extremity: Normal venous flow. No DVT.\n\nIMPRESSION: RIGHT LOWER EXTREMITY DVT.'},
+     'Renal Function':{d:80,c:false,r:'Creatinine 84 umol/L, Urea 5.2 mmol/L, eGFR >60. Normal renal function.'},
+     'BMP / Electrolytes':{d:80,c:false,r:'Na 138, K 3.9, Cl 102, HCO3 22. All within normal limits.'},
+     'Coagulation':{d:70,c:false,r:'PT 13.2 sec, INR 1.1, APTT 32 sec. Normal coagulation profile.'}
+   }
+  },
+  {id:'p2',name:'James Harlow',age:57,g:'M',co:'Multiple Comorbidities',chief:'Chest Pain',ctas:2,wait:0,ho:true,
+   v:{hr:108,hrOk:false,bp:'138/88',bpOk:false,spo2:'96%',spo2Ok:true,temp:'36.9',tempOk:true,rr:20,rrOk:true,gcs:15,gcsOk:true},
+   dx:'STEMI',hoText:'57-year-old male, known multiple comorbidities including diabetes and previous CABG 3 years ago. Presenting with central chest pain for 2 hours. Pending: Troponin, ECG.',
+   ctx:`You are James Harlow, a 57-year-old male patient in the emergency room. You have diabetes, hypertension, and had heart bypass surgery 3 years ago. You are in significant pain and very worried.
+
+Your symptoms (only reveal when directly asked):
+- Crushing chest pain in the center of your chest, radiating to your left arm, for the past 2 hours
+- Sweating heavily
+- Feeling nauseous and short of breath
+- The pain is 9 out of 10 in severity
+- This is the worst chest pain you have ever had
+
+STRICT RULES:
+- Answer ONLY what the doctor directly asks.
+- Speak like a scared patient in pain, not a medical professional.
+- Keep answers to 1-3 sentences.`,
+   plan:['STEMI','ACS / NSTEMI'],
+   inv:{req:['ECG','Troponin'],ok:['CBC','BMP / Electrolytes','Renal Function','Coagulation','Chest X-Ray']},
+   intv:['Aspirin'],impr:'STEMI',disp:'Activate STEMI Code',
+   res:{
+     'ECG':{d:5,c:true,r:'12-LEAD ECG REPORT\n\nFINDINGS: ST elevation >2mm in leads II, III, aVF. Reciprocal ST depression in leads I and aVL. Q waves developing in inferior leads.\n\nIMPRESSION: ACUTE INFERIOR STEMI.\n\nIMMEDIATE REPERFUSION THERAPY REQUIRED. ACTIVATE STEMI PROTOCOL.'},
+     'Troponin':{d:65,c:true,r:'Troponin I: 8.4 ng/mL (Reference <0.04 ng/mL). CRITICALLY ELEVATED. Significant myocardial injury confirmed. Consistent with acute MI.'},
+     'CBC':{d:75,c:false,r:'WBC 11.2, Hgb 14.1, Platelets 198. Mild leukocytosis.'},
+     'Chest X-Ray':{d:70,c:false,r:'PA Chest X-Ray: Mild cardiomegaly. No pulmonary oedema. No pneumothorax.'}
+   }
+  },
+  {id:'p3',name:'Fatima Al-Rashid',age:34,g:'F',co:'Medically Free',chief:'Abdominal Pain',ctas:3,wait:22,ho:false,
+   v:{hr:96,hrOk:false,bp:'118/76',bpOk:true,spo2:'98%',spo2Ok:true,temp:'38.2',tempOk:false,rr:18,rrOk:true,gcs:15,gcsOk:true},
+   dx:'Appendicitis',
+   ctx:`You are Fatima Al-Rashid, a 34-year-old female patient in the emergency room. You are otherwise healthy with no medical history. You are worried about your pain.
+
+Your symptoms (only reveal when directly asked):
+- Pain started around your belly button about 12 hours ago
+- Pain has since moved to your lower right side and gotten much worse
+- Pain is worse when you move or when someone presses on the right lower part of your abdomen
+- You feel nauseous and vomited once
+- You have a low-grade fever and feel hot
+- You have no diarrhea or urinary symptoms
+- Your last period was 2 weeks ago
+- You are not pregnant
+
+Physical examination (reveal only if asked to examine):
+- Tenderness in right lower quadrant
+- Rebound tenderness present
+- Guarding present
+- Positive Rovsing sign
+
+STRICT RULES: Answer only what is asked. 1-3 sentences. Patient language.`,
+   plan:['Appendicitis'],
+   inv:{req:['CT Abdomen/Pelvis (with contrast)'],ok:['CBC','CRP','Urinalysis','Beta-HCG','Ultrasound Abdomen','Ultrasound Pelvis','Renal Function']},
+   intv:[],impr:'Appendicitis',disp:'Refer to General Surgery',
+   res:{
+     'CT Abdomen/Pelvis (with contrast)':{d:90,c:true,r:'CT ABDOMEN/PELVIS WITH CONTRAST\n\nFINDINGS: Dilated appendix measuring 9mm in diameter with periappendiceal fat stranding. Appendicolith present at base. No evidence of perforation. No free fluid or free air.\n\nIMPRESSION: ACUTE APPENDICITIS confirmed. No perforation. Surgical consultation recommended.'},
+     'CBC':{d:75,c:false,r:'WBC 14.8 x10/L. Neutrophilia 82%. Consistent with acute bacterial infection.'},
+     'CRP':{d:75,c:false,r:'CRP 68 mg/L (Ref <10). Elevated - consistent with acute inflammatory process.'},
+     'Ultrasound Abdomen':{d:90,c:false,r:'Ultrasound Abdomen: Appendix visualised - dilated at 8mm with increased vascularity. Findings suggestive of acute appendicitis. CT recommended for confirmation.'},
+     'Beta-HCG':{d:65,c:false,r:'Beta-HCG: Negative. Pregnancy excluded.'},
+     'Urinalysis':{d:65,c:false,r:'Urine dipstick: No blood, no protein, no nitrites, no leukocytes. Normal.'}
+   }
+  },
+  {id:'p4',name:'David Nguyen',age:68,g:'M',co:'Hypertension',chief:'Back Pain',ctas:3,wait:31,ho:false,
+   v:{hr:98,hrOk:false,bp:'178/102',bpOk:false,spo2:'97%',spo2Ok:true,temp:'36.7',tempOk:true,rr:18,rrOk:true,gcs:15,gcsOk:true},
+   dx:'Aortic Dissection',
+   ctx:`You are David Nguyen, a 68-year-old male patient in the emergency room. You have poorly controlled hypertension. You are frightened because of the severity of the pain.
+
+Your symptoms (only reveal when directly asked):
+- Sudden tearing pain between your shoulder blades that started about 1 hour ago
+- This is the worst pain of your life - like something is tearing inside you
+- The pain came on suddenly out of nowhere
+- You have poorly controlled high blood pressure for many years
+- No chest pain
+- You feel slightly lightheaded
+
+Physical examination (reveal only if asked):
+- Blood pressure difference between arms (right arm higher than left)
+- No pulse deficit in arms
+
+STRICT RULES: Answer only what is asked. 1-3 sentences. Patient language.`,
+   plan:['Aortic Dissection'],
+   inv:{req:['CTA Chest - Dissection Protocol'],ok:['Chest X-Ray','ECG','CBC','Renal Function','BMP / Electrolytes']},
+   intv:['Beta Blockers'],impr:'Aortic Dissection',disp:'Refer to Cardiothoracic Surgery',
+   res:{
+     'CTA Chest - Dissection Protocol':{d:100,c:true,r:'CTA CHEST DISSECTION PROTOCOL\n\nFINDINGS: Intimal flap identified in the ascending aorta extending into the descending thoracic aorta. True and false lumen present. Involvement of the aortic root noted. No pericardial effusion.\n\nIMPRESSION: TYPE A AORTIC DISSECTION.\n\nURGENT CARDIOTHORACIC SURGICAL CONSULTATION REQUIRED. IMMEDIATE OPERATIVE INTERVENTION LIKELY NEEDED.'},
+     'Chest X-Ray':{d:70,c:false,r:'PA Chest X-Ray: Widened mediastinum. Aortic knuckle prominent. No pneumothorax. Findings raise concern for aortic pathology.'},
+     'ECG':{d:5,c:false,r:'Sinus tachycardia 98 bpm. No ST changes. No ischaemic changes. Normal ECG.'},
+     'Renal Function':{d:80,c:false,r:'Creatinine 102 umol/L, Urea 7.1 mmol/L. Mildly elevated - monitor closely.'}
+   }
+  },
+  {id:'p5',name:'Linda Park',age:29,g:'F',co:'Medically Free',chief:'Headache',ctas:3,wait:40,ho:false,
+   v:{hr:72,hrOk:true,bp:'122/78',bpOk:true,spo2:'99%',spo2Ok:true,temp:'36.6',tempOk:true,rr:16,rrOk:true,gcs:15,gcsOk:true},
+   dx:'Migraine',
+   ctx:`You are Linda Park, a 29-year-old female patient in the emergency room. You are otherwise healthy. You are uncomfortable from the headache but not in extreme distress.
+
+Your symptoms (only reveal when directly asked):
+- Throbbing headache on the left side of your head that has been going on for 6 hours
+- The light is really bothering you - photophobia
+- Feeling nauseous
+- You saw zigzag visual patterns before the headache started (visual aura)
+- You have had similar headaches before - previously diagnosed with migraine
+- No sudden thunderclap onset - it came on gradually
+- No fever, no neck stiffness
+- No weakness or numbness anywhere
+
+Physical examination (reveal only if asked):
+- Photophobia present
+- No neck stiffness
+- No focal neurological deficits
+- Normal neurological examination
+
+STRICT RULES: Answer only what is asked. 1-3 sentences. Patient language.`,
+   plan:['Subarachnoid Hemorrhage','Meningitis'],
+   inv:{req:['CT Head (without contrast)'],ok:['CBC','Lumbar Puncture']},
+   intv:[],impr:'Migraine',disp:'Discharge Home',
+   res:{
+     'CT Head (without contrast)':{d:85,c:false,r:'CT HEAD WITHOUT CONTRAST\n\nFINDINGS: No intracranial haemorrhage. No subarachnoid blood. No mass lesion. No midline shift. Ventricles normal in size.\n\nIMPRESSION: NORMAL CT HEAD. No acute intracranial pathology identified.'},
+     'CBC':{d:75,c:false,r:'WBC 7.2, Hgb 13.8, Platelets 214. Normal.'},
+     'Lumbar Puncture':{d:90,c:false,r:'CSF: Clear, colourless. Opening pressure normal. WBC 2/uL, RBC 0/uL, Protein 0.32 g/L, Glucose 3.8 mmol/L. No xanthochromia. Normal CSF.'}
+   }
+  }
+];
+
+const DEMO={
+  p1:["It came on very suddenly. I was just sitting and couldn't catch my breath.","Yes, there's a sharp pain on my right side, worse when I breathe in.","I got back from London about 5 days ago. It was a really long flight.","My right leg has been swollen and sore for a few days actually.","I have high blood pressure and diabetes. I take amlodipine and metformin.","The right calf is quite tender and feels tight when I touch it.","There's less air coming in at the bottom of my right side when I breathe.","I feel very dizzy and lightheaded, yes.","No fever that I know of, but I have been sweating a lot.","I don't know what my oxygen level is, doctor."],
+  p2:["It's this terrible crushing pain right in the middle of my chest, going to my left arm.","It started about 2 hours ago. I've never had anything like this before.","I'm diabetic and I had heart bypass surgery about 3 years ago.","Yes I'm sweating a lot and I feel very sick to my stomach.","The pain is a 9 out of 10. I'm really frightened.","It came on suddenly while I was watching television.","Yes I feel short of breath as well."],
+  p3:["The pain started around my belly button then moved to my lower right side.","Yes it hurts a lot more when I move or when you press on it.","I feel sick and I vomited once earlier.","I feel hot and I think I have a temperature.","I'm otherwise healthy, no medical problems.","My last period was about 2 weeks ago.","No diarrhea or problems going to the toilet."],
+  p4:["This tearing pain between my shoulder blades, it started suddenly about an hour ago.","It is the worst pain of my life. It feels like something is tearing inside me.","I have high blood pressure but it is not well controlled, I have to be honest.","No chest pain, just the back between my shoulder blades.","It came on completely out of nowhere when I was just sitting down.","I feel a bit lightheaded yes."],
+  p5:["Throbbing pain on the left side of my head, it has been going on for hours.","The light is really bothering me and I feel nauseous.","Yes I have had similar headaches before, I was told I have migraines.","I saw some zigzag lines in my vision before the headache started.","No fever and my neck feels fine, no stiffness.","It came on gradually, not suddenly.","No weakness or numbness anywhere."]
+};
+
+// ═══════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════
+let G={nick:'',tl:20*60,ti:null,pts:[],cur:null,st:{},newPtTimers:[],apiKey:''};
+
+function initSt(pid){
+  if(G.st[pid]) return;
+  G.st[pid]={chat:[],assessDone:false,plan:[],impr:null,invSel:[],invOrdered:new Set(),invDelivered:{},intv:[],dispSel:null,disposed:false,deceased:false,scoring:null};
+}
+
+// ═══════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════
+function saveApiKey(){
+  const val=document.getElementById('api-key-input').value.trim();
+  if(!val.startsWith('sk-ant-')){alert('Please enter a valid Anthropic API key starting with sk-ant-');return;}
+  G.apiKey=val;
+  const banner=document.getElementById('api-banner');
+  banner.className='cs-api-banner connected';
+  banner.innerHTML='<div class="cs-api-status">✓ AI Patient Active</div>';
+}
+
+// ═══════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════
+function showSc(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+id).classList.add('active');}
+
+// ═══════════════════════════════════════
+// WELCOME
+// ═══════════════════════════════════════
+function startGame(){
+  G.nick=document.getElementById('nick').value.trim();
+  if(!G.nick) return;
+  G.tl=20*60;G.pts=[];G.st={};
+  G.newPtTimers.forEach(t=>clearTimeout(t));G.newPtTimers=[];
+  G.pts=POOL.slice(0,3).map(p=>Object.assign({},p));
+  G.pts.forEach(p=>initSt(p.id));
+  document.getElementById('dash-doc').textContent='Dr. '+G.nick;
+  renderDash();
+  showSc('dashboard');
+  clearInterval(G.ti);
+  G.ti=setInterval(()=>{G.tl--;updateTimers();if(G.tl<=0){clearInterval(G.ti);endShift();}},1000);
+  [3,4].forEach((idx,i)=>{
+    const t=setTimeout(()=>{
+      if(POOL[idx]){const np=Object.assign({},POOL[idx]);np.wait=0;np.isNew=true;G.pts.push(np);initSt(np.id);renderDash();notif('<strong>New patient arriving</strong> — CTAS '+np.ctas,false,null);}
+    },(i===0?5:10)*60*1000);
+    G.newPtTimers.push(t);
+  });
+}
+
+function updateTimers(){
+  const m=Math.floor(G.tl/60),s=String(G.tl%60).padStart(2,'0'),str=m+':'+s;
+  const cls=G.tl<=300?'cs-timer-d crit':G.tl<=600?'cs-timer-d warn':'cs-timer-d';
+  ['dash-timer','pt-timer'].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=str;e.className=cls;}});
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════
+function renderDash(){
+  let disp=0,dead=0;
+  G.pts.forEach(p=>{const s=G.st[p.id];if(s&&s.disposed)disp++;if(s&&s.deceased)dead++;});
+  document.getElementById('s-total').textContent=G.pts.length;
+  document.getElementById('s-disp').textContent=disp;
+  document.getElementById('s-dead').textContent=dead;
+  document.getElementById('s-pend').textContent=G.pts.length-disp-dead;
+  document.getElementById('handover-tbody').innerHTML=G.pts.filter(p=>p.ho).map(ptRow).join('');
+  document.getElementById('waiting-tbody').innerHTML=G.pts.filter(p=>!p.ho).map(ptRow).join('');
+}
+
+function ptRow(p){
+  const s=G.st[p.id];
+  const dead=s&&s.deceased,disp=s&&s.disposed;
+  const rc=dead?'cs-pt-row deceased':disp?'cs-pt-row disposed':'cs-pt-row';
+  const oc=(dead||disp)?'':'onclick="openPt(\''+p.id+'\')"';
+  let st=p.ho?'<span class="tag t-handover">Handover</span>':p.isNew?'<span class="tag t-new">New</span>':'<span class="tag t-wait">Waiting</span>';
+  if(dead)st='<span class="tag t-deceased">Deceased</span>';
+  if(disp)st='<span class="tag t-disposed">Disposed</span>';
+  return`<tr class="${rc}" ${oc}><td><div class="cs-ctas ctas-${p.ctas}">${p.ctas}</div></td><td><div class="pt-name">${p.name}</div></td><td><div class="pt-chief">${p.chief}</div></td><td><div class="pt-wait">${p.ho?'Handover':p.wait+' min'}</div></td><td><div class="${p.v.hrOk?'vok':'vbad'}">${p.v.hr}</div></td><td><div class="${p.v.bpOk?'vok':'vbad'}">${p.v.bp}</div></td><td>${st}</td></tr>`;
+}
+
+function goDash(){
+  showSc('dashboard');renderDash();
+  document.querySelectorAll('.cs-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  document.querySelectorAll('.cs-panel').forEach((p,i)=>p.classList.toggle('active',i===0));
+}
+
+// ═══════════════════════════════════════
+// PATIENT PAGE
+// ═══════════════════════════════════════
+function openPt(pid){
+  G.cur=pid;
+  const p=G.pts.find(x=>x.id===pid),s=G.st[pid];
+  if(!p||!s) return;
+  showSc('patient');
+  const b=document.getElementById('pt-ctas');b.textContent=p.ctas;b.className='cs-ctas-lg ctas-'+p.ctas;
+  document.getElementById('pt-name').textContent=p.name;
+  document.getElementById('pt-sub').textContent=p.age+p.g+' · '+p.co+' · '+(p.ho?'Handover':'Waiting '+p.wait+' min');
+  const v=p.v;
+  document.getElementById('vitals-grid').innerHTML=
+    vc(v.hrOk,'Heart Rate',v.hr,'bpm')+vc(v.bpOk,'Blood Pressure',v.bp,'mmHg')+vc(v.spo2Ok,'SpO2',v.spo2,'%')+
+    vc(v.tempOk,'Temperature',v.temp,'°C')+vc(v.rrOk,'Resp. Rate',v.rr,'br/min')+vc(v.gcsOk,'GCS',v.gcs,'/15');
+  const cb=document.getElementById('chat-box');cb.innerHTML='';
+  if(p.ho&&s.chat.length===0&&!s.assessDone){
+    addMsg('system','','Handover: '+p.hoText);
+    document.getElementById('end-assess-btn').style.display='none';
+    document.getElementById('chat-in').disabled=true;
+    document.getElementById('send-btn').disabled=true;
+  } else {
+    if(s.chat.length===0)addMsg('patient','Patient',openLine(p));
+    else s.chat.forEach(m=>addMsg(m.r==='user'?'doctor':'patient',m.r==='user'?'You':'Patient',m.c));
+    if(s.assessDone){document.getElementById('end-assess-btn').style.display='none';document.getElementById('chat-in').disabled=true;document.getElementById('send-btn').disabled=true;}
+    else{document.getElementById('end-assess-btn').style.display='block';document.getElementById('chat-in').disabled=false;document.getElementById('send-btn').disabled=false;}
+  }
+  buildDxL('plan-list',DX,s.plan);renderPlanTags();
+  buildDxL('impr-list',DX,s.impr?[s.impr]:[]);
+  document.getElementById('impr-sel').textContent=s.impr?'→ '+s.impr:'';
+  buildInvL();renderInvTags();
+  document.getElementById('order-btn').disabled=s.invSel.length===0;
+  renderResults();renderIntv();buildDispL();
+  document.getElementById('disp-btn').disabled=!s.dispSel||!s.impr;
+}
+
+function vc(ok,lbl,val,unit){return`<div class="cs-vc ${ok?'ok':'ab'}"><div class="cs-vlbl">${lbl}</div><div class="cs-vval">${val}</div><div class="cs-vunit">${unit}</div></div>`;}
+function openLine(p){return({'Shortness of Breath':"I can't breathe properly... it started suddenly and it's getting worse.",'Chest Pain':"I've got this terrible chest pain... it's been crushing me for hours.",'Abdominal Pain':"My stomach is really hurting, especially on the right side.",'Back Pain':"I've got this awful tearing pain in my back. It's the worst pain I've ever had.",'Headache':"I have a terrible headache and the light is really bothering me."}[p.chief]||"I'm not feeling well at all, doctor.");}
+
+function swTab(e,name){
+  document.querySelectorAll('.cs-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.cs-panel').forEach(p=>p.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ═══════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════
+function addMsg(type,lbl,text){
+  const b=document.getElementById('chat-box');
+  const d=document.createElement('div');d.className='cs-msg '+type;
+  d.innerHTML=(lbl?'<div class="cs-msg-lbl">'+lbl+'</div>':'')+'<div class="cs-bubble">'+text+'</div>';
+  b.appendChild(d);b.scrollTop=99999;
+}
+
+async function doChat(){
+  const pid=G.cur,s=G.st[pid],p=G.pts.find(x=>x.id===pid);
+  const inp=document.getElementById('chat-in');
+  const msg=inp.value.trim();
+  if(!msg||s.assessDone) return;
+  addMsg('doctor','You',msg);inp.value='';
+  inp.disabled=true;document.getElementById('send-btn').disabled=true;
+  const ld=document.createElement('div');ld.className='cs-msg patient';ld.id='ldmsg';
+  ld.innerHTML='<div class="cs-msg-lbl">Patient</div><div class="cs-bubble loading-dots">...</div>';
+  document.getElementById('chat-box').appendChild(ld);document.getElementById('chat-box').scrollTop=99999;
+  s.chat.push({r:'user',c:msg});
+  let reply='';
+  if(G.apiKey&&G.apiKey.startsWith('sk-ant-')){
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':G.apiKey,'anthropic-version':'2023-06-01'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:150,system:p.ctx,messages:s.chat.map(m=>({role:m.r,content:m.c}))})
+      });
+      const data=await res.json();
+      if(data.content&&data.content[0])reply=data.content[0].text;
+      else reply=getDemoReply(pid);
+    }catch(e){reply=getDemoReply(pid);}
+  } else {
+    await new Promise(r=>setTimeout(r,800));
+    reply=getDemoReply(pid);
+  }
+  document.getElementById('ldmsg')?.remove();
+  s.chat.push({r:'assistant',c:reply});
+  addMsg('patient','Patient',reply);
+  inp.disabled=false;document.getElementById('send-btn').disabled=false;inp.focus();
+}
+
+function getDemoReply(pid){const arr=DEMO[pid]||["I'm not sure about that."];return arr[Math.floor(Math.random()*arr.length)];}
+
+function endAssess(){
+  const s=G.st[G.cur];if(!s||s.assessDone) return;
+  s.assessDone=true;
+  document.getElementById('end-assess-btn').style.display='none';
+  document.getElementById('chat-in').disabled=true;document.getElementById('send-btn').disabled=true;
+  addMsg('system','','Assessment complete. Proceed to Plan to set your differentials.');
+}
+
+// ═══════════════════════════════════════
+// PLAN
+// ═══════════════════════════════════════
+function buildDxL(lid,items,sel){
+  const el=document.getElementById(lid);if(!el) return;
+  const sid=lid==='plan-list'?'plan-s':'impr-s';
+  const q=document.getElementById(sid)?document.getElementById(sid).value:'';
+  const fi=q?items.filter(i=>i.toLowerCase().includes(q.toLowerCase())):items;
+  el.innerHTML=fi.map(item=>'<div class="cs-chk-item '+(sel.includes(item)?'sel':'')+'" onclick="tgDx(\''+lid+'\',\''+e2(item)+'\')"><div class="cs-chkbox">'+(sel.includes(item)?'✓':'')+'</div><span>'+item+'</span></div>').join('');
+}
+
+function tgDx(lid,raw){
+  const s=G.st[G.cur];const item=DX.find(d=>e2(d)===raw)||raw;
+  if(lid==='plan-list'){
+    if(s.plan.includes(item))s.plan=s.plan.filter(x=>x!==item);else s.plan.push(item);
+    buildDxL('plan-list',DX,s.plan);renderPlanTags();
+  } else {
+    s.impr=s.impr===item?null:item;
+    buildDxL('impr-list',DX,s.impr?[s.impr]:[]);
+    document.getElementById('impr-sel').textContent=s.impr?'→ '+s.impr:'';
+    document.getElementById('disp-btn').disabled=!s.dispSel||!s.impr;
+  }
+}
+
+function renderPlanTags(){
+  const s=G.st[G.cur];
+  document.getElementById('plan-tags').innerHTML=s.plan.map(item=>'<div class="cs-tag-pill">'+item+'<span class="cs-tag-x" onclick="rmPlan(
